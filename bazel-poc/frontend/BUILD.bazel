@@ -1,0 +1,44 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@build_bazel_rules_nodejs//:index.bzl", "nodejs_binary")
+
+npm_link_all_packages()
+
+# Development server
+nodejs_binary(
+    name = "dev",
+    data = [
+        "package.json",
+        "vite.config.js",
+        "index.html",
+    ] + glob(["src/**"]),
+    entry_point = "node_modules/vite/bin/vite.js",
+    templated_args = ["--host", "0.0.0.0"],
+)
+
+# Production build
+genrule(
+    name = "build_dist",
+    srcs = [
+        "package.json",
+        "vite.config.js",
+        "index.html",
+    ] + glob(["src/**"]),
+    outs = ["dist.tar.gz"],
+    cmd = """
+        cd frontend
+        npm install
+        npm run build
+        tar -czf $(location dist.tar.gz) dist/
+    """,
+)
+
+# Tests
+nodejs_binary(
+    name = "test",
+    data = [
+        "package.json",
+        "vite.config.js",
+    ] + glob(["src/**", "tests/**"]),
+    entry_point = "node_modules/vitest/vitest.mjs",
+    templated_args = ["run"],
+)
