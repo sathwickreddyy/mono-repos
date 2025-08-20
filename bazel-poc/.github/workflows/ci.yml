@@ -1,0 +1,81 @@
+name: Bazel Monorepo CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.8.1
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Build All Projects
+        run: |
+          bazel build //...
+
+      - name: Test All Projects
+        run: |
+          bazel test //...
+
+      - name: Cache Bazel artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('**/BUILD.bazel', 'WORKSPACE') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.8.1
+
+      - name: Build Artifacts
+        run: |
+          bazel build //demo:build_jar
+          bazel build //frontend:build_dist
+
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: monorepo-artifacts
+          path: |
+            bazel-bin/demo/build/libs/*.jar
+            bazel-bin/frontend/dist.tar.gz

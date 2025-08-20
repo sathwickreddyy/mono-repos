@@ -1,0 +1,13 @@
+# Common flags for better caching and performance
+build --disk_cache=~/.cache/bazel
+test --test_output=errors
+build --symlink_prefix=bazel-
+build --incompatible_strict_action_env
+
+# Use local resources efficiently
+build --local_ram_resources=4096
+build --local_cpu_resources=4
+
+# Show progress and timing
+build --show_progress_rate_limit=5
+build --show_timestamps

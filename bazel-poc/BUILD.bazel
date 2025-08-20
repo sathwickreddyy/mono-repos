@@ -1,0 +1,57 @@
+# Aggregate targets for the entire monorepo
+
+# Build all projects
+alias(
+    name = "build_all",
+    actual = select({
+        "//conditions:default": ":build_java_and_frontend",
+    }),
+)
+
+genrule(
+    name = "build_java_and_frontend",
+    srcs = [],
+    outs = ["build_complete.marker"],
+    cmd = """
+        echo "Building Java service..."
+        $(execpath //demo:build_jar)
+        echo "Building frontend..."
+        $(execpath //frontend:build_dist)
+        echo "Build complete" > $@
+    """,
+    tools = [
+        "//demo:build_jar",
+        "//frontend:build_dist",
+    ],
+)
+
+# Test all projects
+alias(
+    name = "test_all",
+    actual = ":run_all_tests",
+)
+
+sh_test(
+    name = "run_all_tests",
+    srcs = ["scripts/test-all.sh"],
+    data = [
+        "//demo:test_java",
+        "//fastapi:test_python",
+    ],
+)
+
+# Development servers
+alias(
+    name = "run_java",
+    actual = "//demo:bootRun",
+)
+
+alias(
+    name = "run_python", 
+    actual = "//fastapi:server",
+)
+
+alias(
+    name = "run_react",
+    actual = "//frontend:dev",
+)
