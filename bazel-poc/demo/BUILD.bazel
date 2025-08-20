@@ -1,0 +1,47 @@
+# Bazel wrapper for Gradle-based Spring Boot project
+
+genrule(
+    name = "build_jar",
+    srcs = glob([
+        "src/**/*.java",
+        "build.gradle",
+        "settings.gradle",
+        "gradlew",
+        "gradle/**",
+    ]),
+    outs = ["build/libs/demo.jar"],
+    cmd = """
+        cd java-service
+        ./gradlew build
+        cp build/libs/*.jar $(location build/libs/demo.jar)
+    """,
+)
+
+genrule(
+    name = "test_java",
+    srcs = glob([
+        "src/**/*.java",
+        "build.gradle",
+        "settings.gradle",
+        "gradlew",
+        "gradle/**",
+    ]),
+    outs = ["test_results.marker"],
+    cmd = """
+        cd java-service
+        ./gradlew test
+        echo "Tests completed" > $(location test_results.marker)
+    """,
+)
+
+sh_binary(
+    name = "bootRun",
+    srcs = ["run_spring.sh"],
+    data = glob([
+        "src/**/*.java",
+        "build.gradle",
+        "settings.gradle",
+        "gradlew",
+        "gradle/**",
+    ]),
+)
