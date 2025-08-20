@@ -1,3 +1,3 @@
 #!/bin/bash
-cd java-service
+cd demo
 ./gradlew bootRun
