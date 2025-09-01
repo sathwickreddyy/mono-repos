@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="accountSettings">
-    <option name="activeProfile" value="profile:default" />
+    <option name="activeProfile" value="profile:saketh" />
     <option name="activeRegion" value="ap-south-1" />
     <option name="recentlyUsedProfiles">
       <list>
+        <option value="profile:saketh" />
         <option value="profile:default" />
       </list>
     </option>
@@ -13,5 +14,8 @@
         <option value="ap-south-1" />
       </list>
     </option>
+  </component>
+  <component name="explorerToolWindow">
+    <option name="selectedTab" value="CodeCatalyst" />
   </component>
 </project>
