@@ -1,6 +1,7 @@
 # PROFILERS EXPLAINED: What Does What and How to Use Them
 
 ## 📚 Table of Contents
+
 1. [Overview of Profilers](#overview)
 2. [memory-profiler](#memory-profiler)
 3. [ydata-profiling](#ydata-profiling)
@@ -15,25 +16,27 @@
 
 This project includes **4 different profilers**, each serving a unique purpose:
 
-| Profiler | What It Profiles | Output Format | Use Case |
-|----------|-----------------|---------------|----------|
-| **memory-profiler** | RAM usage per line | Text report | Find memory leaks, optimize memory |
-| **ydata-profiling** | Dataset statistics | HTML report | Data quality, EDA automation |
-| **py-spy** | CPU time per function | SVG flame graph | Find slow functions, CPU bottlenecks |
-| **Polars .profile()** | Query execution plan | Text report | Optimize Polars queries |
+| Profiler              | What It Profiles      | Output Format   | Use Case                             |
+| --------------------- | --------------------- | --------------- | ------------------------------------ |
+| **memory-profiler**   | RAM usage per line    | Text report     | Find memory leaks, optimize memory   |
+| **ydata-profiling**   | Dataset statistics    | HTML report     | Data quality, EDA automation         |
+| **py-spy**            | CPU time per function | SVG flame graph | Find slow functions, CPU bottlenecks |
+| **Polars .profile()** | Query execution plan  | Text report     | Optimize Polars queries              |
 
 ---
 
 ## 1. memory-profiler {#memory-profiler}
 
 ### What It Does
-- **Profiles**: Memory (RAM) usage line-by-line
-- **Shows**: How much memory each line of code consumes
-- **Tracks**: Memory allocation, deallocation, and leaks
+
+-   **Profiles**: Memory (RAM) usage line-by-line
+-   **Shows**: How much memory each line of code consumes
+-   **Tracks**: Memory allocation, deallocation, and leaks
 
 ### How to Use
 
 #### Method 1: Decorator (Recommended)
+
 ```python
 from memory_profiler import profile
 
@@ -45,6 +48,7 @@ def my_function():
 ```
 
 #### Method 2: Command Line
+
 ```bash
 python -m memory_profiler pandas_profiling_demo.py
 ```
@@ -52,6 +56,7 @@ python -m memory_profiler pandas_profiling_demo.py
 ### What It Generates
 
 **Output: Text Report in Terminal**
+
 ```
 Line #    Mem usage    Increment  Occurences   Line Contents
 ============================================================
@@ -62,43 +67,50 @@ Line #    Mem usage    Increment  Occurences   Line Contents
 ```
 
 ### How to Read It
-- **Mem usage**: Total memory at this point in execution
-- **Increment**: Memory added by THIS specific line
-- **Line Contents**: The actual code
+
+-   **Mem usage**: Total memory at this point in execution
+-   **Increment**: Memory added by THIS specific line
+-   **Line Contents**: The actual code
 
 ### What You Learn
+
 ✅ Which lines consume most memory
 ✅ If memory is being released properly
 ✅ If you have memory leaks (memory keeps growing)
 ✅ Where to optimize memory usage
 
 ### Real Example from This Project
+
 ```bash
 # Run pandas demo with memory profiling
 python -m memory_profiler pandas_profiling_demo.py
 ```
 
 **You'll see:**
-- Loading data: ~50 MB
-- First join: +100 MB (orders + customers)
-- Second join: +140 MB (adding products)
-- Peak memory: ~420 MB
+
+-   Loading data: ~50 MB
+-   First join: +100 MB (orders + customers)
+-   Second join: +140 MB (adding products)
+-   Peak memory: ~420 MB
 
 **Insights:**
-- Joins are memory-intensive (creates copies)
-- Filtering after joins wastes memory
-- Should filter before joining when possible
+
+-   Joins are memory-intensive (creates copies)
+-   Filtering after joins wastes memory
+-   Should filter before joining when possible
 
 ---
 
 ## 2. ydata-profiling {#ydata-profiling}
 
 ### What It Does
-- **Profiles**: Your dataset statistics and quality
-- **Shows**: Distributions, correlations, missing values, outliers
-- **Automates**: Exploratory Data Analysis (EDA)
+
+-   **Profiles**: Your dataset statistics and quality
+-   **Shows**: Distributions, correlations, missing values, outliers
+-   **Automates**: Exploratory Data Analysis (EDA)
 
 ### How to Use
+
 ```python
 from ydata_profiling import ProfileReport
 
@@ -114,50 +126,56 @@ profile.to_file("report.html")
 **Sections in the Report:**
 
 #### 1. Overview Tab
-- Number of variables (columns)
-- Number of observations (rows)
-- Missing cells percentage
-- Duplicate rows
-- Memory size
+
+-   Number of variables (columns)
+-   Number of observations (rows)
+-   Missing cells percentage
+-   Duplicate rows
+-   Memory size
 
 #### 2. Variables Tab
+
 For EACH column:
-- **Numeric columns**: 
-  - Min, max, mean, median, std
-  - Histogram showing distribution
-  - Outliers detected
-  - Missing values percentage
-  
-- **Categorical columns**:
-  - Unique values count
-  - Most frequent values
-  - Bar chart of frequencies
-  
-- **Date columns**:
-  - Date range
-  - Timeline plot
-  - Missing dates
+
+-   **Numeric columns**:
+    -   Min, max, mean, median, std
+    -   Histogram showing distribution
+    -   Outliers detected
+    -   Missing values percentage
+-   **Categorical columns**:
+    -   Unique values count
+    -   Most frequent values
+    -   Bar chart of frequencies
+-   **Date columns**:
+    -   Date range
+    -   Timeline plot
+    -   Missing dates
 
 #### 3. Interactions Tab
-- Correlation matrix (Pearson, Spearman)
-- Scatter plots between variables
-- Helps find relationships
+
+-   Correlation matrix (Pearson, Spearman)
+-   Scatter plots between variables
+-   Helps find relationships
 
 #### 4. Correlations Tab
-- Pearson correlation (linear relationships)
-- Spearman correlation (monotonic relationships)
-- Cramér's V (categorical associations)
+
+-   Pearson correlation (linear relationships)
+-   Spearman correlation (monotonic relationships)
+-   Cramér's V (categorical associations)
 
 #### 5. Missing Values Tab
-- Matrix showing where values are missing
-- Patterns in missingness
-- Counts per variable
+
+-   Matrix showing where values are missing
+-   Patterns in missingness
+-   Counts per variable
 
 #### 6. Sample Tab
-- First 10 rows
-- Last 10 rows
+
+-   First 10 rows
+-   Last 10 rows
 
 ### How to View It
+
 ```bash
 # After running pandas_profiling_demo.py
 open pandas_profile_report.html  # macOS
@@ -165,6 +183,7 @@ open pandas_profile_report.html  # macOS
 ```
 
 ### What You Learn
+
 ✅ Data quality issues (missing values, duplicates)
 ✅ Outliers that need handling
 ✅ Distribution shapes (normal, skewed, bimodal)
@@ -172,6 +191,7 @@ open pandas_profile_report.html  # macOS
 ✅ Which columns have problems
 
 ### Real Example from This Project
+
 ```bash
 # Generate the report
 python pandas_profiling_demo.py
@@ -181,22 +201,25 @@ open pandas_profile_report.html
 ```
 
 **You'll discover:**
-- 5% missing values in `amount` column (by design)
-- Distribution of orders across countries (USA dominates)
-- Correlation between product price and order amount
-- Customer segments distribution
-- Date range of orders (2020-2025)
+
+-   5% missing values in `amount` column (by design)
+-   Distribution of orders across countries (USA dominates)
+-   Correlation between product price and order amount
+-   Customer segments distribution
+-   Date range of orders (2020-2025)
 
 ---
 
 ## 3. py-spy {#py-spy}
 
 ### What It Does
-- **Profiles**: CPU time spent in each function
-- **Shows**: Where your program spends time (performance bottlenecks)
-- **Visualizes**: Call stacks as flame graphs
+
+-   **Profiles**: CPU time spent in each function
+-   **Shows**: Where your program spends time (performance bottlenecks)
+-   **Visualizes**: Call stacks as flame graphs
 
 ### How to Use
+
 ```bash
 # Basic usage
 py-spy record -o output.svg -- python your_script.py
@@ -215,6 +238,7 @@ py-spy record -o output.svg -r 500 -- python your_script.py
 ### How to Read Flame Graphs
 
 **Visual Structure:**
+
 ```
 [main]                                    ← Entry point (bottom)
   ├─[load_data]                          ← Called by main
@@ -226,16 +250,19 @@ py-spy record -o output.svg -r 500 -- python your_script.py
 ```
 
 **Key Concepts:**
-- **Width** = Time spent (wider = slower = bottleneck!)
-- **Height** = Call stack depth (how deep functions call each other)
-- **Color** = Random (just for visual separation)
+
+-   **Width** = Time spent (wider = slower = bottleneck!)
+-   **Height** = Call stack depth (how deep functions call each other)
+-   **Color** = Random (just for visual separation)
 
 **Interactive Features:**
-- Click on bars to zoom in
-- Hover to see function name and percentage
-- Search for specific functions (Ctrl+F)
+
+-   Click on bars to zoom in
+-   Hover to see function name and percentage
+-   Search for specific functions (Ctrl+F)
 
 ### What You Learn
+
 ✅ Which functions are slow (wide bars)
 ✅ Where CPU time is spent
 ✅ Call patterns (who calls what)
@@ -258,32 +285,37 @@ open polars_profile.svg
 **What You'll See:**
 
 **Pandas Flame Graph:**
-- Wide bars in `merge()` function (slow joins)
-- Time spent in Python interpreter
-- Wide bars in `groupby()` operations
-- Overall execution spread across many functions
+
+-   Wide bars in `merge()` function (slow joins)
+-   Time spent in Python interpreter
+-   Wide bars in `groupby()` operations
+-   Overall execution spread across many functions
 
 **Polars Flame Graph:**
-- Narrow bars (fast execution!)
-- Most time in native Rust code (if using --native)
-- Efficient parallel execution
-- Much smaller overall width
+
+-   Narrow bars (fast execution!)
+-   Most time in native Rust code (if using --native)
+-   Efficient parallel execution
+-   Much smaller overall width
 
 **Comparison:**
-- Pandas flame graph is ~150x wider than Polars
-- Polars shows more native code execution
-- Pandas shows more Python overhead
+
+-   Pandas flame graph is ~150x wider than Polars
+-   Polars shows more native code execution
+-   Pandas shows more Python overhead
 
 ---
 
 ## 4. Polars .profile() {#polars-profile}
 
 ### What It Does
-- **Profiles**: Polars query execution plan
-- **Shows**: How Polars optimizes and executes your query
-- **Reveals**: Time spent in each operation
+
+-   **Profiles**: Polars query execution plan
+-   **Shows**: How Polars optimizes and executes your query
+-   **Reveals**: Time spent in each operation
 
 ### How to Use
+
 ```python
 import polars as pl
 
@@ -303,6 +335,7 @@ print(profile_info)  # Shows execution plan
 ### What It Generates
 
 **Output: Text Report in Terminal**
+
 ```
 ╭────────────────────────┬────────┬────────────╮
 │ node                   │ time   │ % of total │
@@ -320,22 +353,25 @@ print(profile_info)  # Shows execution plan
 ```
 
 ### What You Learn
+
 ✅ Query execution order (Polars optimizes!)
 ✅ Which operations are slow
 ✅ If query optimization is working
 ✅ Filter pushdown effectiveness
 
 ### Real Example from This Project
+
 ```bash
 # Run polars demo (includes .profile() output)
 python polars_profiling_demo.py
 ```
 
 **You'll see:**
-- Query plan showing optimization
-- Time breakdown per operation
-- Proof that lazy evaluation works
-- Where the query bottleneck is (usually JOIN or COLLECT)
+
+-   Query plan showing optimization
+-   Time breakdown per operation
+-   Proof that lazy evaluation works
+-   Where the query bottleneck is (usually JOIN or COLLECT)
 
 **Key Insight:**
 Notice how FILTER runs BEFORE JOIN (filter pushdown optimization) - this is Polars being smart!
@@ -345,12 +381,14 @@ Notice how FILTER runs BEFORE JOIN (filter pushdown optimization) - this is Pola
 ## When to Use Each Profiler {#when-to-use}
 
 ### Use memory-profiler when:
+
 ❓ "Why is my script using so much RAM?"
 ❓ "Where is the memory leak?"
 ❓ "Which function consumes most memory?"
 ❓ "Can I reduce memory usage?"
 
 ### Use ydata-profiling when:
+
 ❓ "What does my dataset look like?"
 ❓ "Are there data quality issues?"
 ❓ "What are the distributions?"
@@ -358,12 +396,14 @@ Notice how FILTER runs BEFORE JOIN (filter pushdown optimization) - this is Pola
 ❓ "Do I have outliers or missing values?"
 
 ### Use py-spy when:
+
 ❓ "Why is my script slow?"
 ❓ "Which function takes most CPU time?"
 ❓ "Where should I optimize first?"
 ❓ "Is the bottleneck in Python or native code?"
 
 ### Use Polars .profile() when:
+
 ❓ "Is my Polars query optimized?"
 ❓ "Where is the Polars query slow?"
 ❓ "Is lazy evaluation working?"
@@ -378,16 +418,19 @@ Notice how FILTER runs BEFORE JOIN (filter pushdown optimization) - this is Pola
 **Problem:** Script memory keeps growing
 
 **Solution:** Use memory-profiler
+
 ```bash
 python -m memory_profiler pandas_profiling_demo.py
 ```
 
 **Look for:**
-- Lines with large positive increments
-- Memory that never goes down
-- Accumulating objects in loops
+
+-   Lines with large positive increments
+-   Memory that never goes down
+-   Accumulating objects in loops
 
 **Fix:**
+
 ```python
 # Bad: Memory leak
 results = []
@@ -407,6 +450,7 @@ for chunk in chunks:
 **Problem:** New dataset, don't know what's in it
 
 **Solution:** Use ydata-profiling
+
 ```python
 from ydata_profiling import ProfileReport
 import pandas as pd
@@ -417,10 +461,11 @@ profile.to_file("report.html")
 ```
 
 **Open report.html and discover:**
-- Missing values: 30% in column X (needs imputation)
-- Outliers: Values >1000 in column Y (need capping)
-- Correlations: Column A and B are 95% correlated (remove one)
-- Duplicates: 500 duplicate rows (need deduplication)
+
+-   Missing values: 30% in column X (needs imputation)
+-   Outliers: Values >1000 in column Y (need capping)
+-   Correlations: Column A and B are 95% correlated (remove one)
+-   Duplicates: 500 duplicate rows (need deduplication)
 
 ---
 
@@ -429,16 +474,18 @@ profile.to_file("report.html")
 **Problem:** Script takes 10 minutes, need to speed up
 
 **Solution:** Use py-spy
+
 ```bash
 py-spy record -o profile.svg -- python slow_script.py
 open profile.svg
 ```
 
 **Analysis:**
-- See wide bar in `process_data()` function (70% of time)
-- Zoom into `process_data()`
-- See nested loop is the bottleneck
-- Optimize the loop → 10x speedup!
+
+-   See wide bar in `process_data()` function (70% of time)
+-   Zoom into `process_data()`
+-   See nested loop is the bottleneck
+-   Optimize the loop → 10x speedup!
 
 ---
 
@@ -447,6 +494,7 @@ open profile.svg
 **Problem:** Polars query still slow
 
 **Solution:** Use .profile()
+
 ```python
 result, profile = (
     pl.scan_parquet('huge_file.parquet')
@@ -459,10 +507,11 @@ print(profile)
 ```
 
 **Analysis:**
-- See SCAN takes 60% of time
-- Add filter earlier to reduce data
-- Add select to load fewer columns
-- New profile shows 5x speedup!
+
+-   See SCAN takes 60% of time
+-   Add filter earlier to reduce data
+-   Add select to load fewer columns
+-   New profile shows 5x speedup!
 
 ---
 
@@ -489,12 +538,12 @@ python polars_profiling_demo.py
 
 ## Summary Table
 
-| Profiler | What | Output | When | Time to Run |
-|----------|------|--------|------|-------------|
-| **memory-profiler** | RAM per line | Terminal text | Memory issues | +30% slower |
-| **ydata-profiling** | Dataset stats | HTML report | New dataset | 2-3 minutes |
-| **py-spy** | CPU time | SVG graph | Slow code | +1-2% slower |
-| **Polars .profile()** | Query plan | Terminal text | Query optimization | Built-in |
+| Profiler              | What          | Output        | When               | Time to Run  |
+| --------------------- | ------------- | ------------- | ------------------ | ------------ |
+| **memory-profiler**   | RAM per line  | Terminal text | Memory issues      | +30% slower  |
+| **ydata-profiling**   | Dataset stats | HTML report   | New dataset        | 2-3 minutes  |
+| **py-spy**            | CPU time      | SVG graph     | Slow code          | +1-2% slower |
+| **Polars .profile()** | Query plan    | Terminal text | Query optimization | Built-in     |
 
 ---
 
