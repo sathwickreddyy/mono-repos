@@ -1,13 +1,13 @@
 """
 Pandas profiling demonstration with complex multi-table joins.
-Uses memory-profiler decorators and ydata-profiling for comprehensive analysis.
+Uses memory-profiler decorators for memory analysis.
+Focus on scaling analysis with memory tracking.
 """
 
 import pandas as pd
 import time
 from pathlib import Path
 from memory_profiler import profile
-from ydata_profiling import ProfileReport
 
 # Global variables to track execution times
 timing_data = {}
@@ -181,38 +181,31 @@ def apply_filters_and_aggregations(df_full):
     return df_filtered, agg_country_category, agg_segment, top_customers
 
 
-def generate_profiling_report(df_full, output_path='pandas_profile_report.html'):
+def print_memory_summary(df_full):
     """
-    Generate comprehensive HTML profiling report using ydata-profiling.
-    This creates a detailed analysis of the dataset including:
-    - Dataset overview and statistics
-    - Variable distributions
-    - Correlations
-    - Missing values analysis
-    - Sample data
+    Print memory usage summary for the dataset.
     """
-    print_section("GENERATING YDATA-PROFILING REPORT")
-    print(f"Analyzing dataset with {len(df_full):,} rows and {len(df_full.columns)} columns...")
-    print("This may take a few minutes for large datasets...")
+    print_section("MEMORY USAGE SUMMARY")
+    print(f"\n📊 Dataset: {len(df_full):,} rows × {len(df_full.columns)} columns")
     
-    start = time.time()
+    # Calculate memory usage
+    memory_usage = df_full.memory_usage(deep=True)
+    total_memory = memory_usage.sum() / 1024**2
     
-    # Create profile with optimized settings for large datasets
-    profile = ProfileReport(
-        df_full,
-        title="E-Commerce Joined Dataset Profile",
-        minimal=False,  # Set to True for faster but less detailed report
-        explorative=True,
-        dark_mode=False
-    )
+    print(f"\n💾 Total Memory: {total_memory:.2f} MB")
+    print(f"📏 Memory per row: {total_memory / len(df_full) * 1024:.2f} KB")
     
-    # Save report
-    profile.to_file(output_path)
-    report_time = time.time() - start
-    timing_data['pandas_profiling_report'] = report_time
+    print("\n📋 Top 5 columns by memory usage:")
+    top_columns = memory_usage.sort_values(ascending=False).head(5)
+    for col, mem in top_columns.items():
+        if col != 'Index':
+            print(f"   {col:<20} {mem / 1024**2:>10.2f} MB")
     
-    print(f"✓ Report saved to: {output_path}")
-    print(f"⏱  Report generation time: {report_time:.3f} seconds")
+    print("\n💡 Memory Optimization Tips:")
+    print("   - Use category dtype for string columns with few unique values")
+    print("   - Use appropriate int types (int8, int16) instead of int64")
+    print("   - Drop unnecessary columns early in processing")
+    print("   - Consider using Polars for lower memory overhead")
 
 
 def print_summary():
@@ -227,7 +220,6 @@ def print_summary():
     print(f"   Total Joins:            {timing_data.get('pandas_total_joins', 0):.3f}s")
     print(f"   Filtering:              {timing_data.get('pandas_filter', 0):.3f}s")
     print(f"   Aggregations:           {timing_data.get('pandas_total_agg', 0):.3f}s")
-    print(f"   Profiling Report:       {timing_data.get('pandas_profiling_report', 0):.3f}s")
     
     total_time = sum(timing_data.values())
     print(f"\n⏱  TOTAL EXECUTION TIME:   {total_time:.3f}s")
@@ -237,6 +229,13 @@ def print_summary():
     print("   - Consider data types optimization (category dtype for strings)")
     print("   - Use chunking for very large datasets")
     print("   - Profile memory usage to identify bottlenecks")
+    
+    print("\n🔍 For detailed memory profiling, run:")
+    print("   python -m memory_profiler pandas_profiling_demo.py")
+    
+    print("\n🔥 For CPU profiling with flame graphs, run:")
+    print("   py-spy record -o pandas_profile.svg -- python pandas_profiling_demo.py")
+    print("   open pandas_profile.svg")
 
 
 def main():
@@ -264,8 +263,8 @@ def main():
     print("\nTop 10 Customers:")
     print(top_customers.head(10))
     
-    # Generate profiling report
-    generate_profiling_report(df_full)
+    # Print memory usage summary
+    print_memory_summary(df_full)
     
     # Print summary
     timing_data['overall'] = time.time() - overall_start

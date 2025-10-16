@@ -12,11 +12,11 @@ def test_imports():
     packages = {
         'pandas': 'pandas',
         'polars': 'polars',
-        'ydata_profiling': 'ydata-profiling',
         'memory_profiler': 'memory-profiler',
         'pyarrow': 'pyarrow',
-        'matplotlib': 'matplotlib',
-        'numpy': 'numpy'
+        'numpy': 'numpy',
+        'psutil': 'psutil',
+        'faker': 'faker'
     }
     
     for module, package in packages.items():
