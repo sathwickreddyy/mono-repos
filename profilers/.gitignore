@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Data files
+data/
+*.csv
+*.parquet
+
+# Profiling outputs
+*.svg
+*.speedscope.json
+*.mprof
+*.prof
+mprofile_*.dat
+
+# Reports
+*.html
+*_report.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs
+*.log
