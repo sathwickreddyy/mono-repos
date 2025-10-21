@@ -24,95 +24,112 @@ This is a horizontally scalable, distributed task processing system built on mic
 ### Design Principles
 
 #### 1. Separation of Concerns
-- **API servers**: Only handle HTTP, validation, and task submission
-- **Workers**: Only handle computation (no HTTP dependencies)
-- **Redis**: Only handles message passing and result storage
-- **Nginx**: Only handles routing and load distribution
+
+-   **API servers**: Only handle HTTP, validation, and task submission
+-   **Workers**: Only handle computation (no HTTP dependencies)
+-   **Redis**: Only handles message passing and result storage
+-   **Nginx**: Only handles routing and load distribution
 
 #### 2. Statelessness
-- API servers have no local state (can scale horizontally)
-- Workers are ephemeral (can be killed and restarted)
-- All state stored in Redis (single source of truth)
+
+-   API servers have no local state (can scale horizontally)
+-   Workers are ephemeral (can be killed and restarted)
+-   All state stored in Redis (single source of truth)
 
 #### 3. Fault Tolerance
-- Multiple API servers (survives individual crashes)
-- Multiple workers (survives worker failures)
-- Redis persistence (survives restarts)
-- Nginx health checks (routes around failed servers)
+
+-   Multiple API servers (survives individual crashes)
+-   Multiple workers (survives worker failures)
+-   Redis persistence (survives restarts)
+-   Nginx health checks (routes around failed servers)
 
 #### 4. Observability
-- Structured logging with correlation IDs
-- Metrics exposed via Flower dashboard
-- Request tracing via X-Request-ID headers
-- Health check endpoints for monitoring
+
+-   Structured logging with correlation IDs
+-   Metrics exposed via Flower dashboard
+-   Request tracing via X-Request-ID headers
+-   Health check endpoints for monitoring
 
 ### Trade-offs & Alternatives
 
 #### Current Design: Redis as Broker
+
 **Pros:**
-- Simple setup (single container)
-- Fast (in-memory operations)
-- Built-in persistence with AOF
+
+-   Simple setup (single container)
+-   Fast (in-memory operations)
+-   Built-in persistence with AOF
 
 **Cons:**
-- Single point of failure (no clustering in this setup)
-- Limited message size (512MB max)
-- In-memory means RAM constraints
+
+-   Single point of failure (no clustering in this setup)
+-   Limited message size (512MB max)
+-   In-memory means RAM constraints
 
 **Alternatives:**
-- RabbitMQ: Better for complex routing, message persistence
-- AWS SQS: Fully managed, auto-scaling, but vendor lock-in
-- Kafka: Better for event streaming, but overkill for task queue
+
+-   RabbitMQ: Better for complex routing, message persistence
+-   AWS SQS: Fully managed, auto-scaling, but vendor lock-in
+-   Kafka: Better for event streaming, but overkill for task queue
 
 #### Current Design: Nginx Load Balancer
+
 **Pros:**
-- Lightweight and fast
-- Simple configuration
-- Well-tested in production
+
+-   Lightweight and fast
+-   Simple configuration
+-   Well-tested in production
 
 **Cons:**
-- No auto-scaling of backends
-- Manual health check configuration
+
+-   No auto-scaling of backends
+-   Manual health check configuration
 
 **Alternatives:**
-- HAProxy: More advanced load balancing algorithms
-- AWS ALB: Managed, auto-scales, but AWS-specific
-- Traefik: Dynamic configuration, but more complex
+
+-   HAProxy: More advanced load balancing algorithms
+-   AWS ALB: Managed, auto-scales, but AWS-specific
+-   Traefik: Dynamic configuration, but more complex
 
 ### Scaling Strategy
 
 #### Vertical Scaling (Scale Up)
-- Increase worker concurrency: `--concurrency=8`
-- Increase CPU/RAM per container
-- Limit: Single machine constraints
+
+-   Increase worker concurrency: `--concurrency=8`
+-   Increase CPU/RAM per container
+-   Limit: Single machine constraints
 
 #### Horizontal Scaling (Scale Out)
-- Add more worker containers: `docker-compose scale celery-worker=10`
-- Add more API servers
-- Limit: Redis connection limit, network bandwidth
+
+-   Add more worker containers: `docker-compose scale celery-worker=10`
+-   Add more API servers
+-   Limit: Redis connection limit, network bandwidth
 
 ### Production Considerations
 
 1. **Security**
-   - Add authentication (JWT tokens)
-   - Encrypt Redis connections (TLS)
-   - Network segmentation (API servers in DMZ, workers in private subnet)
+
+    - Add authentication (JWT tokens)
+    - Encrypt Redis connections (TLS)
+    - Network segmentation (API servers in DMZ, workers in private subnet)
 
 2. **Reliability**
-   - Redis clustering (Redis Sentinel or Cluster mode)
-   - Multiple availability zones
-   - Automated failover
+
+    - Redis clustering (Redis Sentinel or Cluster mode)
+    - Multiple availability zones
+    - Automated failover
 
 3. **Performance**
-   - Connection pooling (Redis, database)
-   - Caching layer (Redis for results)
-   - CDN for static assets
+
+    - Connection pooling (Redis, database)
+    - Caching layer (Redis for results)
+    - CDN for static assets
 
 4. **Monitoring**
-   - Prometheus + Grafana for metrics
-   - ELK stack for log aggregation
-   - Sentry for error tracking
-   - New Relic/Datadog for APM
+    - Prometheus + Grafana for metrics
+    - ELK stack for log aggregation
+    - Sentry for error tracking
+    - New Relic/Datadog for APM
 
 ## Request Flow
 
@@ -140,44 +157,48 @@ User Response
 ## Failure Scenarios & Recovery
 
 ### Scenario 1: API Server Crash
-- **Detection**: Nginx health checks fail
-- **Response**: Nginx routes traffic to healthy servers
-- **Recovery**: Restart container, Nginx auto-detects
+
+-   **Detection**: Nginx health checks fail
+-   **Response**: Nginx routes traffic to healthy servers
+-   **Recovery**: Restart container, Nginx auto-detects
 
 ### Scenario 2: Worker Crash
-- **Detection**: Task stuck in 'PENDING' state
-- **Response**: Other workers continue processing queue
-- **Recovery**: Restart worker, picks up new tasks
+
+-   **Detection**: Task stuck in 'PENDING' state
+-   **Response**: Other workers continue processing queue
+-   **Recovery**: Restart worker, picks up new tasks
 
 ### Scenario 3: Redis Crash
-- **Detection**: Workers can't connect to broker
-- **Response**: System stops accepting tasks (HTTP 503)
-- **Recovery**: Restart Redis, workers reconnect
+
+-   **Detection**: Workers can't connect to broker
+-   **Response**: System stops accepting tasks (HTTP 503)
+-   **Recovery**: Restart Redis, workers reconnect
 
 ### Scenario 4: Nginx Crash
-- **Detection**: Port 80 not responding
-- **Response**: Direct API access still works (bypass LB)
-- **Recovery**: Restart Nginx
+
+-   **Detection**: Port 80 not responding
+-   **Response**: Direct API access still works (bypass LB)
+-   **Recovery**: Restart Nginx
 
 ## Performance Targets
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| API Response Time | <50ms | TBD |
-| Task Queue Latency | <100ms | TBD |
-| Task Processing Time | 5-6s | TBD |
-| Throughput (tasks/sec) | 12 (3×4 workers) | TBD |
-| Queue Depth (max) | 500 tasks | 500 |
-| Uptime SLA | 99.9% | TBD |
+| Metric                 | Target           | Current |
+| ---------------------- | ---------------- | ------- |
+| API Response Time      | <50ms            | TBD     |
+| Task Queue Latency     | <100ms           | TBD     |
+| Task Processing Time   | 5-6s             | TBD     |
+| Throughput (tasks/sec) | 12 (3×4 workers) | TBD     |
+| Queue Depth (max)      | 500 tasks        | 500     |
+| Uptime SLA             | 99.9%            | TBD     |
 
 ## Cost Analysis (AWS)
 
-| Component | Instance Type | Monthly Cost |
-|-----------|---------------|--------------|
-| Nginx + Redis | t3.medium | $30 |
-| FastAPI × 3 | t3.small | $45 |
-| Workers × 3 | c6i.2xlarge | $900 |
-| **Total** | | **$975** |
+| Component     | Instance Type | Monthly Cost |
+| ------------- | ------------- | ------------ |
+| Nginx + Redis | t3.medium     | $30          |
+| FastAPI × 3   | t3.small      | $45          |
+| Workers × 3   | c6i.2xlarge   | $900         |
+| **Total**     |               | **$975**     |
 
 ## Next Steps
 
