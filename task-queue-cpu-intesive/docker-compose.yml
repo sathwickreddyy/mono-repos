@@ -1,0 +1,589 @@
+version: "3.8"
+
+# ============================================================================
+# PRODUCTION-GRADE DOCKER COMPOSE CONFIGURATION
+# ============================================================================
+# Architecture: Microservices with network isolation
+# Patterns: Circuit breaker, health checks, graceful degradation
+# Scalability: Horizontal scaling ready (docker-compose scale)
+# ============================================================================
+
+# NETWORKS: Multi-tier isolation for defense in depth
+networks:
+  frontend:
+    driver: bridge
+    # API servers and load balancer communicate here
+    # Accessible from host for external traffic
+
+  backend:
+    driver: bridge
+    # Internal communication: API ↔ Redis ↔ Workers
+    # Not accessible from host (internal only)
+
+  monitoring:
+    driver: bridge
+    # Flower dashboard observability layer
+    # Read-only access to Redis
+
+# VOLUMES: Persistent storage for stateful services
+volumes:
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      # Mount to host directory for backup/recovery
+      device: /Users/sathwick/my-office/docker-mounts/task-queue-cpu-intesive/redis-data
+
+  nginx_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /Users/sathwick/my-office/docker-mounts/task-queue-cpu-intesive/nginx-logs
+
+services:
+  # ==========================================================================
+  # REDIS: Message Broker + Result Backend
+  # ==========================================================================
+  # Why Redis? In-memory speed + AOF persistence = durability + performance
+  # Trade-off: Single point of failure (use Redis Sentinel in production)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis-broker
+
+    # Custom config for production tuning
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+
+    networks:
+      - backend
+      - monitoring
+
+    # Health check: Ensure Redis responds to PING
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+    # Resource limits: Prevent OOM killer from taking down host
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+
+    # Restart policy: Auto-recover from crashes
+    restart: unless-stopped
+
+    # Logging: JSON format with rotation (prevents disk fill)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Labels: Metadata for monitoring tools (Prometheus, Grafana)
+    labels:
+      - "com.task-queue.service=redis"
+      - "com.task-queue.tier=backend"
+
+  # ==========================================================================
+  # FASTAPI SERVERS: Stateless HTTP API Layer (3 replicas)
+  # ==========================================================================
+  # Why 3 instances? High availability (survives 1-2 crashes)
+  # Why stateless? Can scale horizontally without coordination
+  # Pattern: Competing consumers behind load balancer
+  # ==========================================================================
+
+  fastapi-1:
+    build:
+      context: ./fastapi-app
+      dockerfile: Dockerfile
+    container_name: fastapi-server-1
+
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+      - MAX_QUEUE_SIZE=500
+      - SERVER_ID=1
+
+    networks:
+      - frontend
+      - backend
+
+    # Expose ports for direct access (bypassing LB for debugging)
+    ports:
+      - "8001:8000"
+
+    # Health check: HTTP endpoint returns 200 OK
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Dependency: Wait for Redis to be healthy before starting
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=fastapi"
+      - "com.task-queue.tier=frontend"
+      - "com.task-queue.instance=1"
+
+  fastapi-2:
+    build:
+      context: ./fastapi-app
+      dockerfile: Dockerfile
+    container_name: fastapi-server-2
+
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+      - MAX_QUEUE_SIZE=500
+      - SERVER_ID=2
+
+    networks:
+      - frontend
+      - backend
+
+    ports:
+      - "8002:8000"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=fastapi"
+      - "com.task-queue.tier=frontend"
+      - "com.task-queue.instance=2"
+
+  fastapi-3:
+    build:
+      context: ./fastapi-app
+      dockerfile: Dockerfile
+    container_name: fastapi-server-3
+
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=INFO
+      - MAX_QUEUE_SIZE=500
+      - SERVER_ID=3
+
+    networks:
+      - frontend
+      - backend
+
+    ports:
+      - "8003:8000"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=fastapi"
+      - "com.task-queue.tier=frontend"
+      - "com.task-queue.instance=3"
+
+  # ==========================================================================
+  # CELERY WORKERS: CPU-Intensive Task Processors (3 replicas)
+  # ==========================================================================
+  # Why 3 workers? Throughput = 3 workers × 4 concurrency ÷ 6s = 2 tasks/sec
+  # Why concurrency=4? Balance between parallelism and memory overhead
+  # Pattern: Competing consumers with priority queue support
+  # ==========================================================================
+
+  celery-worker-1:
+    build:
+      context: ./celery-worker
+      dockerfile: Dockerfile
+    container_name: celery-worker-1
+
+    command: >
+      celery -A tasks worker
+      --loglevel=info
+      --concurrency=4
+      --prefetch-multiplier=1
+      --max-tasks-per-child=100
+      --queues=high,medium,low
+      --hostname=worker1@%h
+
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_TASK_SERIALIZER=json
+      - CELERY_RESULT_SERIALIZER=json
+      - CELERY_ACCEPT_CONTENT=json
+      - CELERY_TIMEZONE=UTC
+      - CELERY_TASK_TIME_LIMIT=600
+      - CELERY_TASK_SOFT_TIME_LIMIT=540
+      - CELERY_RESULT_EXPIRES=604800
+      - WORKER_ID=1
+
+    networks:
+      - backend
+
+    # Health check: Celery inspect ping
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d worker1@$$HOSTNAME"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    # Higher resources for CPU-intensive work
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=celery-worker"
+      - "com.task-queue.tier=backend"
+      - "com.task-queue.instance=1"
+
+  celery-worker-2:
+    build:
+      context: ./celery-worker
+      dockerfile: Dockerfile
+    container_name: celery-worker-2
+
+    command: >
+      celery -A tasks worker
+      --loglevel=info
+      --concurrency=4
+      --prefetch-multiplier=1
+      --max-tasks-per-child=100
+      --queues=high,medium,low
+      --hostname=worker2@%h
+
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_TASK_SERIALIZER=json
+      - CELERY_RESULT_SERIALIZER=json
+      - CELERY_ACCEPT_CONTENT=json
+      - CELERY_TIMEZONE=UTC
+      - CELERY_TASK_TIME_LIMIT=600
+      - CELERY_TASK_SOFT_TIME_LIMIT=540
+      - CELERY_RESULT_EXPIRES=604800
+      - WORKER_ID=2
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d worker2@$$HOSTNAME"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=celery-worker"
+      - "com.task-queue.tier=backend"
+      - "com.task-queue.instance=2"
+
+  celery-worker-3:
+    build:
+      context: ./celery-worker
+      dockerfile: Dockerfile
+    container_name: celery-worker-3
+
+    command: >
+      celery -A tasks worker
+      --loglevel=info
+      --concurrency=4
+      --prefetch-multiplier=1
+      --max-tasks-per-child=100
+      --queues=high,medium,low
+      --hostname=worker3@%h
+
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_TASK_SERIALIZER=json
+      - CELERY_RESULT_SERIALIZER=json
+      - CELERY_ACCEPT_CONTENT=json
+      - CELERY_TIMEZONE=UTC
+      - CELERY_TASK_TIME_LIMIT=600
+      - CELERY_TASK_SOFT_TIME_LIMIT=540
+      - CELERY_RESULT_EXPIRES=604800
+      - WORKER_ID=3
+
+    networks:
+      - backend
+
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d worker3@$$HOSTNAME"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+
+    restart: on-failure:3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=celery-worker"
+      - "com.task-queue.tier=backend"
+      - "com.task-queue.instance=3"
+
+  # ==========================================================================
+  # NGINX: Load Balancer with Health Checks
+  # ==========================================================================
+  # Why Nginx? Lightweight, battle-tested, excellent performance
+  # Pattern: Gateway aggregation + circuit breaker
+  # ==========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx-loadbalancer
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+
+    networks:
+      - frontend
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    # Health check: Nginx responds to HTTP requests
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    depends_on:
+      - fastapi-1
+      - fastapi-2
+      - fastapi-3
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=nginx"
+      - "com.task-queue.tier=frontend"
+
+  # ==========================================================================
+  # FLOWER: Real-time Monitoring Dashboard
+  # ==========================================================================
+  # Why Flower? Built-in Celery monitoring, web UI, task history
+  # Trade-off: Resource overhead vs observability value
+  # ==========================================================================
+  flower:
+    image: mher/flower:2.0
+    container_name: flower-monitoring
+
+    command: >
+      celery --broker=redis://redis:6379/0 
+      flower 
+      --port=5555 
+      --purge_offline_workers=60
+
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - FLOWER_PORT=5555
+
+    networks:
+      - monitoring
+      - backend
+
+    ports:
+      - "5555:5555"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+
+    restart: unless-stopped
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "com.task-queue.service=flower"
+      - "com.task-queue.tier=monitoring"

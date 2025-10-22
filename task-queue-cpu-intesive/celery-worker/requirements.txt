@@ -1,0 +1,21 @@
+# Celery Worker Dependencies
+# ============================================================================
+# Task Queue
+celery==5.3.4
+redis==5.0.1
+
+# Numerical Computing (for financial calculations)
+numpy==1.26.2
+pandas==2.1.3
+
+# Scientific Computing (for portfolio optimization)
+scipy==1.11.4
+
+# Data Validation
+pydantic==2.5.0
+
+# Logging
+python-json-logger==2.0.7
+
+# Development/Testing (optional)
+# pytest==7.4.3
