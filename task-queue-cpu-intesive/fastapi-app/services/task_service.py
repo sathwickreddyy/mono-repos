@@ -44,6 +44,7 @@ class TaskService:
         task_data: Dict[str, Any],
         priority: str = "medium",
         queue: str = None,
+        correlation_id: str = None,  # ← NEW: Accept correlation_id for tracing
     ) -> Dict[str, Any]:
         """
         Create and submit a new task.
@@ -54,6 +55,7 @@ class TaskService:
             task_data: Task input data
             priority: Task priority (high, medium, low)
             queue: Target queue (auto-assigned if None)
+            correlation_id: Request correlation ID for distributed tracing
             
         Returns:
             Task creation response
@@ -92,6 +94,7 @@ class TaskService:
             task_data=task_data,
             queue=queue,
             priority=self._get_priority_value(priority),
+            correlation_id=correlation_id,  # ← FIXED: Pass correlation_id to queue service
         )
         
         # Estimate wait time based on queue depth

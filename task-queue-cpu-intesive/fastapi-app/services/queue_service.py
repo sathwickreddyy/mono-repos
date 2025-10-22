@@ -42,6 +42,7 @@ class QueueService:
         task_data: Dict[str, Any],
         queue: str = "medium",
         priority: int = 5,
+        correlation_id: str = None,  # ← NEW: Accept correlation_id
     ) -> str:
         """
         Submit task to queue.
@@ -51,6 +52,7 @@ class QueueService:
             task_data: Task input data
             queue: Target queue name
             priority: Task priority (0-10, higher = more important)
+            correlation_id: Request correlation ID for distributed tracing
             
         Returns:
             Task ID
@@ -59,11 +61,15 @@ class QueueService:
             BrokerConnectionException: If cannot connect to Redis
         """
         try:
+            # Add correlation_id to task metadata (available in task context)
+            if correlation_id:
+                task_data['correlation_id'] = correlation_id
+            
             # CRITICAL: Unpack task_data as **kwargs for Celery
             # Celery's send_task expects kwargs to be a dict that will be unpacked
             # Example: kwargs={'a': 1, 'b': 2} becomes task_func(a=1, b=2)
-            logger.info(f"DEBUG - Submitting task {task_name} with kwargs: {list(task_data.keys())}")
-            logger.info(f"DEBUG - Full kwargs: {task_data}")
+            logger.info(f"DEBUG - Submitting task {task_name} with correlation_id: {correlation_id}")
+            logger.info(f"DEBUG - Task kwargs keys: {list(task_data.keys())}")
             
             result = self.app.send_task(
                 task_name,
@@ -72,7 +78,7 @@ class QueueService:
                 priority=priority,
                 serializer='json',
             )
-            logger.info(f"Task submitted: {result.id} to queue '{queue}'")
+            logger.info(f"Task submitted: {result.id} to queue '{queue}' (correlation: {correlation_id})")
             return result.id
         except Exception as e:
             logger.error(f"Failed to submit task: {e}", exc_info=True)

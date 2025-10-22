@@ -62,7 +62,8 @@ def calculate_var(
     self,
     portfolio_data: Dict[str, Any],
     confidence_level: float = 0.95,
-    time_horizon: int = 10
+    time_horizon: int = 10,
+    correlation_id: str = None  # FIXED: Accept correlation_id for distributed tracing
 ) -> Dict[str, Any]:
     """
     Calculate Value at Risk (VaR) for a portfolio.
@@ -76,6 +77,7 @@ def calculate_var(
         portfolio_data: Dict with positions, prices, volatilities
         confidence_level: VaR confidence (default 95%)
         time_horizon: Days to simulate (default 10)
+        correlation_id: Request correlation ID for distributed tracing
     
     Returns:
         Dict with var_amount, expected_shortfall, simulation_count
@@ -88,8 +90,8 @@ def calculate_var(
     start_time = time.time()
     
     logger.info(
-        f"DEBUG - VaR task received: portfolio_data type={type(portfolio_data)}, "
-        f"value={portfolio_data}, confidence={confidence_level}, horizon={time_horizon}"
+        f"✅ VaR task START - Task ID: {task_id}, Correlation ID: {correlation_id}, "
+        f"confidence={confidence_level}, horizon={time_horizon}"
     )
     
     logger.info(
@@ -116,7 +118,7 @@ def calculate_var(
         elapsed = time.time() - start_time
         
         logger.info(
-            f"Completed VaR calculation - Task: {task_id}, "
+            f"✅ VaR task COMPLETE - Task ID: {task_id}, Correlation ID: {correlation_id}, "
             f"Duration: {elapsed:.2f}s, VaR: ${result['var_amount']:,.2f}"
         )
         

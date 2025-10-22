@@ -94,11 +94,12 @@ async def create_task(
         extra={"request_id": correlation_id},
     )
     
-    # Create task via service layer
+    # Create task via service layer (pass correlation_id for distributed tracing)
     result = task_service.create_task(
         task_data=task_request.data,
         priority=task_request.priority,
         queue=task_request.queue,
+        correlation_id=correlation_id,  # ← FIXED: Pass correlation_id through
     )
     
     return TaskCreateResponse(**result)
